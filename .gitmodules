@@ -1,0 +1,3 @@
+[submodule "allegrojs"]
+	path = allegrojs
+	url = git@github.com:TheSos/allegrojs.git
