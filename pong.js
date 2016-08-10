@@ -1,3 +1,10 @@
+/*    CONSTANTS    */
+// Framerate (refresh frequency) 30 FPS
+var framerate = 30;
+// Size of the canvas
+var cv_h = 18, cv_w = 32;
+
+
 /*    TYPE DEFINITIONS    */
 // Current state of the game
 var StatusEnum = { STOPPED: 0, RUNNING: 1 };
@@ -23,6 +30,8 @@ function Racquet(side) {
 	this.size = { x: 1, y: 6};
 	// Color of the racquet (defaults to white)
 	this.colour = Colours.WHITE;
+	// vertical speed of the racquet (per frame)
+	this.speed = 6 * 1./framerate;
 }
 // Draw this racquet on `canvas`
 Racquet.prototype.draw = function() {
@@ -40,7 +49,9 @@ var start_time;
 // Left and Right racquets
 var  leftRq = new Racquet(RacquetSide.LEFT);
 var rightRq = new Racquet(RacquetSide.RIFGHT);
-
+// Max and min values for the vertical component of the position of racquets
+var ymin =  3;
+var ymax = 15;
 
 /*    ENTRY CODE    */
 // Draw the game
@@ -53,7 +64,23 @@ function draw() {
 
 // Updates the game
 function update() {
-	
+	// Interpret status of arrows
+	if (key[KEY_RIGHT]) {
+		rightRq.pos.y -= rightRq.speed;
+		if (rightRq.pos.y < ymin) rightRq.pos.y = ymin;
+	}
+	if (key[KEY_LEFT]) {
+		rightRq.pos.y += rightRq.speed;
+		if (rightRq.pos.y > ymax) rightRq.pos.y = ymax;
+	}
+	if (key[KEY_UP]) {
+		leftRq.pos.y -= leftRq.speed;
+		if (leftRq.pos.y < ymin) leftRq.pos.y = ymin;
+	}
+	if (key[KEY_DOWN]) {
+		leftRq.pos.y += leftRq.speed;
+		if (leftRq.pos.y > ymax) leftRq.pos.y = ymax;
+	}
 }
 
 // Sets up everything
@@ -62,8 +89,8 @@ function main() {
 	install_timer();
 	install_keyboard();
 	install_sound();
-	set_gfx_mode("canvas_id", 32, 18);
+	set_gfx_mode("canvas_id", cv_w, cv_h);
 	start_time = time();
-	loop(function() { update(); draw(); }, BPS_TO_TIMER(30)); // 30 FPS
+	loop(function() { update(); draw(); }, BPS_TO_TIMER(framerate));
 }
 END_OF_MAIN();
