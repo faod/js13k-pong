@@ -49,16 +49,44 @@ Racquet.prototype.draw = function() {
 		/* y */ (this.pos.y - this.size.y / 2.) * px,
 		/* w */ this.size.x * px,
 		/* h */ this.size.y * px,
-		        this.colour)
+		        this.colour);
 };
 
+// Ball object constructor
+function Ball() {
+	// position "pos" is the current position of the center of the ball
+	this.pos = { x: 16, y: 9 };
+	// Size of this ball
+	this.size = { x: 1, y: 1 };
+	// speed of the ball (per frame)
+	this.speed = px/2. * 1./framerate;
+	this.colour  = Colours.WHITE;
+	this.outline = Colours.BLACK;
+}
+// Draw this ball
+Ball.prototype.draw = function() {
+	rect(canvas,
+		/* x */ (this.pos.x - this.size.x / 2.) * px,
+		/* y */ (this.pos.y - this.size.y / 2.) * px,
+		/* w */ this.size.x * px,
+		/* h */ this.size.y * px,
+				this.outline, px/2.);
+
+	rectfill(canvas,
+		/* x */ (this.pos.x - this.size.x / 2.) * px,
+		/* y */ (this.pos.y - this.size.y / 2.) * px,
+		/* w */ this.size.x * px,
+		/* h */ this.size.y * px,
+		        this.colour);
+};
 
 /*    GLOBALS    */
-var start_time;
 var current_status = Statuses.INIT;
 // Left and Right racquets
 var  leftRq = new Racquet(RacquetSide.LEFT);
 var rightRq = new Racquet(RacquetSide.RIFGHT);
+// Ball
+var ball = new Ball();
 // Max and min values for the vertical component of the position of racquets
 var ymin =  3;
 var ymax = 15;
@@ -70,6 +98,7 @@ function draw() {
 	rectfill(canvas, cv_w/2.-px, 0, 2*px, 18*px, Colours.WHITE); // vertical separator
 	leftRq.draw();
 	rightRq.draw();
+	ball.draw();
 	if (current_status == Statuses.READY) {
 		textout_centre(canvas, font, "Press space to throw", cv_w/2., cv_h/2., px*1.5, Colours.WHITE, Colours.BLACK, px/10.);
 	}
