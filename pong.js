@@ -5,6 +5,8 @@ var framerate = 30;
 var cv_h = 360, cv_w = 640;
 // Size of a pixel
 var px = cv_w / 32;
+// Debug, set to `true` to enable
+var debug = true;
 
 /*    TYPE DEFINITIONS    */
 // Current state of the game
@@ -19,6 +21,47 @@ var Statuses = {
 var Colours = {
 	WHITE: 0xFFFFFFFF,
 	BLACK: 0xFF000000,
+	RED:   0xFFFF0000,
+	GREEN: 0xFF00FF00,
+	BLUE:  0xFF0000FF,
+};
+
+// AABB object constructor
+function AABB(pos, size) {
+	this.pos = pos;
+	this.size = size;
+}
+AABB.prototype.overlap = function(other) {
+	var dx = Math.abs(this.pos.x - other.pos.x);
+	var dy = Math.abs(this.pos.y - other.pos.y);
+
+	var sx = this.size.x/2. + other.size.x/2.;
+	var sy = this.size.y/2. + other.size.y/2.;
+
+	return { x: dx<sx, y: dy<sy }; // overlap on X, overlap on Y
+};
+AABB.prototype.isWithin = function(other) { // `this` is completely inside other
+	var dx = Math.abs(this.pos.x - other.pos.x) + this.size.x/2.;
+	var dy = Math.abs(this.pos.y - other.pos.y) + this.size.y/2.;
+
+	var sx = other.size.x/2.;
+	var sy = other.size.y/2.;
+
+	return { x: dx<sx, y: dy<sy }; // within on X, within on Y
+};
+AABB.prototype.bounceNorm = function(other) {
+	var dx = this.pos.x - other.pos.x;
+	var dy = this.pos.y - other.pos.y;
+
+	var sx = (this.size.x + other.size.x)/2. - Math.abs(dx);
+	var sy = (this.size.y + other.size.y)/2. - Math.abs(dy);
+
+	if (sx < sy) {
+		return { x: Math.sign(dx), y: 0 };
+	}
+	else {
+		return { x: 0, y: Math.sign(dy) };
+	}
 };
 
 // To make racquets
@@ -28,15 +71,13 @@ var RacquetSide = { LEFT: 0, RIGHT: 1 };
 function Racquet(side) {
 	// LEFT or RIGHT
 	this.side = side;
-	// position "pos" is the current position of the center of the racquet
-	if (side == RacquetSide.LEFT) {
-		this.pos = { x:  1.5, y: 9 };
-	}
-	else {
-		this.pos = { x: 30.5, y: 9 };
-	}
-	// Current size of the racquet
-	this.size = { x: 1, y: 6};
+	// Bounds of this racquet
+	this.aabb = new AABB(
+		// position "pos" is the current position of the center of the racquet
+		(side == RacquetSide.LEFT) ? { x:  1.5, y: 9 } : { x: 30.5, y: 9 },
+		// Current size of the racquet
+		{ x: 1, y: 6}
+	);
 	// Color of the racquet (defaults to white)
 	this.colour = Colours.WHITE;
 	// vertical speed of the racquet (per frame)
@@ -45,39 +86,74 @@ function Racquet(side) {
 // Draw this racquet on `canvas`
 Racquet.prototype.draw = function() {
 	rectfill(canvas,
-		/* x */ (this.pos.x - this.size.x / 2.) * px,
-		/* y */ (this.pos.y - this.size.y / 2.) * px,
-		/* w */ this.size.x * px,
-		/* h */ this.size.y * px,
+		/* x */ (this.aabb.pos.x - this.aabb.size.x / 2.) * px,
+		/* y */ (this.aabb.pos.y - this.aabb.size.y / 2.) * px,
+		/* w */ this.aabb.size.x * px,
+		/* h */ this.aabb.size.y * px,
 		        this.colour);
 };
 
 // Ball object constructor
 function Ball() {
-	// position "pos" is the current position of the center of the ball
-	this.pos = { x: 16, y: 9 };
-	// Size of this ball
-	this.size = { x: 1, y: 1 };
+	// Bounds of this ball
+	this.aabb = new AABB(
+		// position "pos" is the current position of the center of the ball
+		{ x: 16, y: 9 },
+		// Size of this ball
+		{ x: 1, y: 1 }
+	);
 	// speed of the ball (per frame)
 	this.speed = px/2. * 1./framerate;
+	// direction of the ball (unit vector)
+	this.dir = { x: (rand32()>0? 1: -1) * .707, y: (rand32()>0? 1: -1) * .707 }; // .707 = sqrt(2) / 2
 	this.colour  = Colours.WHITE;
 	this.outline = Colours.BLACK;
 }
 // Draw this ball
 Ball.prototype.draw = function() {
 	rect(canvas,
-		/* x */ (this.pos.x - this.size.x / 2.) * px,
-		/* y */ (this.pos.y - this.size.y / 2.) * px,
-		/* w */ this.size.x * px,
-		/* h */ this.size.y * px,
-				this.outline, px/2.);
+		/* x */ (this.aabb.pos.x - this.aabb.size.x / 2.) * px,
+		/* y */ (this.aabb.pos.y - this.aabb.size.y / 2.) * px,
+		/* w */ this.aabb.size.x * px,
+		/* h */ this.aabb.size.y * px,
+		        this.outline, px/2.);
 
 	rectfill(canvas,
-		/* x */ (this.pos.x - this.size.x / 2.) * px,
-		/* y */ (this.pos.y - this.size.y / 2.) * px,
-		/* w */ this.size.x * px,
-		/* h */ this.size.y * px,
+		/* x */ (this.aabb.pos.x - this.aabb.size.x / 2.) * px,
+		/* y */ (this.aabb.pos.y - this.aabb.size.y / 2.) * px,
+		/* w */ this.aabb.size.x * px,
+		/* h */ this.aabb.size.y * px,
 		        this.colour);
+
+	if (debug) { // draw direction vector
+		line(canvas,
+		/* x1 */ this.aabb.pos.x * px,
+		/* y1 */ this.aabb.pos.y * px,
+		/* x2 */ this.aabb.pos.x * px + this.dir.x * px*2.,
+		/* y2 */ this.aabb.pos.y * px + this.dir.y * px*2.,
+		         Colours.RED, px/5.);
+	}
+};
+// Vertical bounce
+Ball.prototype.vBounce = function() {
+	this.dir.y = -(this.dir.y); // Stupid reflection function
+};
+// Horizontal bounce
+Ball.prototype.hBounce = function() {
+	this.dir.x = -(this.dir.x); // Stupid reflection function
+};
+Ball.prototype.bounce = function(norm_v) {
+	if (norm_v.x != 0) this.dir.x = -(this.dir.x);
+	if (norm_v.y != 0) this.dir.y = -(this.dir.y);
+};
+// Logic of a ball
+Ball.prototype.update = function() {
+	this.aabb.pos.x += this.dir.x * this.speed;
+	this.aabb.pos.y += this.dir.y * this.speed;
+};
+Ball.prototype.reset = function() {
+	this.aabb.pos = { x: 16, y: 9 };
+	this.dir = { x: (rand32()>0? 1: -1) * .707, y: (rand32()>0? 1: -1) * .707 }; // .707 = sqrt(2) / 2
 };
 
 /*    GLOBALS    */
@@ -90,6 +166,9 @@ var ball = new Ball();
 // Max and min values for the vertical component of the position of racquets
 var ymin =  3;
 var ymax = 15;
+// AABB of the canvas
+var canvasAABB = new AABB({ x: 16., y: 9. }, { x: 32., y: 18. });
+
 
 /*    ENTRY CODE    */
 // Draw the game
@@ -120,36 +199,68 @@ function draw() {
 function game_logic() {
 	// Interpret status of arrows
 	if (key[KEY_RIGHT]) {
-		rightRq.pos.y -= rightRq.speed;
-		if (rightRq.pos.y < ymin) rightRq.pos.y = ymin;
+		rightRq.aabb.pos.y -= rightRq.speed;
+		if (rightRq.aabb.pos.y < ymin) rightRq.aabb.pos.y = ymin;
 	}
 	if (key[KEY_LEFT]) {
-		rightRq.pos.y += rightRq.speed;
-		if (rightRq.pos.y > ymax) rightRq.pos.y = ymax;
+		rightRq.aabb.pos.y += rightRq.speed;
+		if (rightRq.aabb.pos.y > ymax) rightRq.aabb.pos.y = ymax;
 	}
 	if (key[KEY_UP]) {
-		leftRq.pos.y -= leftRq.speed;
-		if (leftRq.pos.y < ymin) leftRq.pos.y = ymin;
+		leftRq.aabb.pos.y -= leftRq.speed;
+		if (leftRq.aabb.pos.y < ymin) leftRq.aabb.pos.y = ymin;
 	}
 	if (key[KEY_DOWN]) {
-		leftRq.pos.y += leftRq.speed;
-		if (leftRq.pos.y > ymax) leftRq.pos.y = ymax;
+		leftRq.aabb.pos.y += leftRq.speed;
+		if (leftRq.aabb.pos.y > ymax) leftRq.aabb.pos.y = ymax;
+	}
+
+	ball.update();
+
+	// Racquet <-> Ball collision
+	var ballLeftHit  = ball.aabb.overlap(leftRq.aabb);
+	if (ballLeftHit.x && ballLeftHit.y) {
+		ball.bounce(ball.aabb.bounceNorm(leftRq.aabb));
+	}
+	var ballRightHit = ball.aabb.overlap(rightRq.aabb);
+	if (ballRightHit.x && ballRightHit.y) {
+		ball.bounce(ball.aabb.bounceNorm(rightRq.aabb));
+	}
+
+	// Ball <-> canvas collision
+	var ballin = ball.aabb.isWithin(canvasAABB);
+	if (!ballin.x) {
+		console.log("current_status <-- GAMEOVER");
+		current_status = Statuses.GAMEOVER;
+	}
+	if (!ballin.y) {
+		ball.vBounce();
 	}
 }
 
-function update() {
+function update(delta_t) {
 	switch (current_status) {
 	case Statuses.INIT:
-		if (pressed[KEY_SPACE]) current_status = Statuses.READY;
+		if (pressed[KEY_SPACE]) {
+			console.log("current_status <-- READY");
+			current_status = Statuses.READY;
+		}
 		break;
 	case Statuses.READY:
-		if (pressed[KEY_SPACE]) current_status = Statuses.PLAYING;
+		if (pressed[KEY_SPACE]) {
+			console.log("current_status <-- PLAYING");
+			current_status = Statuses.PLAYING;
+		}
 		break;
 	case Statuses.PLAYING:
 		game_logic();
 		break;
 	case Statuses.GAMEOVER:
-		if (pressed[KEY_SPACE]) current_status = Statuses.INIT;
+		if (pressed[KEY_SPACE]) {
+			console.log("current_status <-- INIT");
+			current_status = Statuses.INIT;
+			ball.reset();
+		}
 		break;
 	default:
 		console.log("current_status set to wrong value " + current_status);
@@ -163,7 +274,11 @@ function main() {
 	install_keyboard();
 	install_sound();
 	set_gfx_mode("canvas_id", cv_w, cv_h);
-	start_time = time();
-	loop(function() { update(); draw(); }, BPS_TO_TIMER(framerate));
+	var cur_time = time();
+	loop(function() {
+		var delta_t = time() - cur_time;
+		update(delta_t); draw();
+		cur_time += delta_t;
+	}, BPS_TO_TIMER(framerate));
 }
 END_OF_MAIN();
