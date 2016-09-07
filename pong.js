@@ -106,6 +106,8 @@ function Ball() {
 	this.speed = px/2. * 1./framerate;
 	// direction of the ball (unit vector)
 	this.dir = { x: (rand32()>0? 1: -1) * .707, y: (rand32()>0? 1: -1) * .707 }; // .707 = sqrt(2) / 2
+	// How many times the ball passed over the net
+	this.net_counter = 0;
 	this.colour  = Colours.WHITE;
 	this.outline = Colours.BLACK;
 }
@@ -124,6 +126,8 @@ Ball.prototype.draw = function() {
 		/* w */ this.aabb.size.x * px,
 		/* h */ this.aabb.size.y * px,
 		        this.colour);
+
+	textout_centre(canvas, font, this.net_counter.toString(), cv_w/2., px*2., px*1.5, Colours.WHITE, Colours.BLACK, px/10.);
 
 	if (debug) { // draw direction vector
 		line(canvas,
@@ -148,12 +152,18 @@ Ball.prototype.bounce = function(norm_v) {
 };
 // Logic of a ball
 Ball.prototype.update = function() {
+	var kx1 = this.aabb.pos.x - 16;
 	this.aabb.pos.x += this.dir.x * this.speed;
 	this.aabb.pos.y += this.dir.y * this.speed;
+	var kx2 = this.aabb.pos.x - 16;
+	if (kx1<0 && kx2>=0 || kx1>0 && kx2<=0) {
+		this.net_counter++;
+	}
 };
 Ball.prototype.reset = function() {
 	this.aabb.pos = { x: 16, y: 9 };
 	this.dir = { x: (rand32()>0? 1: -1) * .707, y: (rand32()>0? 1: -1) * .707 }; // .707 = sqrt(2) / 2
+	this.net_counter = 0;
 };
 
 /*    GLOBALS    */
