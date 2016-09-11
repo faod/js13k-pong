@@ -7,6 +7,8 @@ var cv_h = 360, cv_w = 640;
 var px = cv_w / 32;
 // Debug, set to `true` to enable
 var debug = true;
+// For glitching
+var base_factor = 1000./framerate;
 
 /*    TYPE DEFINITIONS    */
 // Current state of the game
@@ -40,14 +42,25 @@ AABB.prototype.overlap = function(other) {
 
 	return { x: dx<sx, y: dy<sy }; // overlap on X, overlap on Y
 };
+AABB.prototype._linearWithin = function(inner_pos, inner_hsize, outer_pos, outer_hsize) {
+	var max_i = 1000 + inner_pos + inner_hsize; // +1000 to avoid negative coordinates
+	var max_o = 1000 + outer_pos + outer_hsize;
+	var delta = max_o - max_i;
+	if (delta < 0) {
+		return delta
+	}
+	var cmp = 2*outer_hsize - 2*inner_hsize;
+	if (delta > cmp) {
+		return delta - cmp;
+	}
+	return 0;
+};
 AABB.prototype.isWithin = function(other) { // `this` is completely inside other
-	var dx = Math.abs(this.pos.x - other.pos.x) + this.size.x/2.;
-	var dy = Math.abs(this.pos.y - other.pos.y) + this.size.y/2.;
-
-	var sx = other.size.x/2.;
-	var sy = other.size.y/2.;
-
-	return { x: dx<sx, y: dy<sy }; // within on X, within on Y
+	// returns 0,0 if is within, otherwise returns vector v: {vx, vy} to translate back `this` within `other`.
+	return {
+		x: this._linearWithin(this.pos.x, this.size.x/2., other.pos.x, other.size.x/2.),
+		y: this._linearWithin(this.pos.y, this.size.y/2., other.pos.y, other.size.y/2.)
+	};
 };
 AABB.prototype.bounceNorm = function(other) {
 	var dx = this.pos.x - other.pos.x;
@@ -151,10 +164,11 @@ Ball.prototype.bounce = function(norm_v) {
 	if (norm_v.y != 0) this.dir.y = -(this.dir.y);
 };
 // Logic of a ball
-Ball.prototype.update = function() {
+Ball.prototype.update = function(delta_t) {
+	var fac = base_factor / delta_t;
 	var kx1 = this.aabb.pos.x - 16;
-	this.aabb.pos.x += this.dir.x * this.speed;
-	this.aabb.pos.y += this.dir.y * this.speed;
+	this.aabb.pos.x += this.dir.x * fac * this.speed;
+	this.aabb.pos.y += this.dir.y * fac * this.speed;
 	var kx2 = this.aabb.pos.x - 16;
 	if (kx1<0 && kx2>=0 || kx1>0 && kx2<=0) {
 		this.net_counter++;
@@ -206,7 +220,7 @@ function draw() {
 }
 
 // Updates the game
-function game_logic() {
+function game_logic(delta_t) {
 	// Interpret status of arrows
 	if (key[KEY_RIGHT]) {
 		rightRq.aabb.pos.y -= rightRq.speed;
@@ -225,7 +239,7 @@ function game_logic() {
 		if (leftRq.aabb.pos.y > ymax) leftRq.aabb.pos.y = ymax;
 	}
 
-	ball.update();
+	ball.update(delta_t + (rand() > 60000 ? 0: Math.floor(50 * frand())));
 
 	// Racquet <-> Ball collision
 	var ballLeftHit  = ball.aabb.overlap(leftRq.aabb);
@@ -239,12 +253,13 @@ function game_logic() {
 
 	// Ball <-> canvas collision
 	var ballin = ball.aabb.isWithin(canvasAABB);
-	if (!ballin.x) {
+	if (ballin.x) {
 		console.log("current_status <-- GAMEOVER");
 		current_status = Statuses.GAMEOVER;
 	}
-	if (!ballin.y) {
+	if (ballin.y) {
 		ball.vBounce();
+		ball.aabb.pos.y += ballin.y;
 	}
 }
 
@@ -263,7 +278,7 @@ function update(delta_t) {
 		}
 		break;
 	case Statuses.PLAYING:
-		game_logic();
+		game_logic(delta_t);
 		break;
 	case Statuses.GAMEOVER:
 		if (pressed[KEY_SPACE]) {
