@@ -172,12 +172,19 @@ Ball.prototype.update = function(delta_t) {
 	var kx2 = this.aabb.pos.x - 16;
 	if (kx1<0 && kx2>=0 || kx1>0 && kx2<=0) {
 		this.net_counter++;
+		// Increase speed (the harder the better) every 2 points
+		if (this.speed < 1.5*px * 1./framerate) { // happens at most 8 times
+			if (!(this.net_counter % 2)) {
+				this.speed += px/8. * 1./framerate;
+			}
+		}
 	}
 };
 Ball.prototype.reset = function() {
 	this.aabb.pos = { x: 16, y: 9 };
 	this.dir = { x: (rand32()>0? 1: -1) * .707, y: (rand32()>0? 1: -1) * .707 }; // .707 = sqrt(2) / 2
 	this.net_counter = 0;
+	this.speed = px/2. * 1./framerate;
 };
 
 /*    GLOBALS    */
