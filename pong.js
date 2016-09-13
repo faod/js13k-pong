@@ -9,6 +9,8 @@ var px = cv_w / 32;
 var debug = true;
 // For glitching
 var base_factor = 1000./framerate;
+// WebAudio entry point
+var audioCtx = new AudioContext();
 
 /*    TYPE DEFINITIONS    */
 // Current state of the game
@@ -199,6 +201,8 @@ var ymin =  3;
 var ymax = 15;
 // AABB of the canvas
 var canvasAABB = new AABB({ x: 16., y: 9. }, { x: 32., y: 18. });
+// Bounce sound
+var boing = null;
 
 
 /*    ENTRY CODE    */
@@ -252,10 +256,12 @@ function game_logic(delta_t) {
 	var ballLeftHit  = ball.aabb.overlap(leftRq.aabb);
 	if (ballLeftHit.x && ballLeftHit.y) {
 		ball.bounce(ball.aabb.bounceNorm(leftRq.aabb));
+		playSndBuf(boing);
 	}
 	var ballRightHit = ball.aabb.overlap(rightRq.aabb);
 	if (ballRightHit.x && ballRightHit.y) {
 		ball.bounce(ball.aabb.bounceNorm(rightRq.aabb));
+		playSndBuf(boing);
 	}
 
 	// Ball <-> canvas collision
@@ -267,6 +273,7 @@ function game_logic(delta_t) {
 	if (ballin.y) {
 		ball.vBounce();
 		ball.aabb.pos.y += ballin.y;
+		playSndBuf(boing);
 	}
 }
 
@@ -299,6 +306,13 @@ function update(delta_t) {
 	}
 }
 
+function playSndBuf(sndbuf) {
+	bufsrc = audioCtx.createBufferSource();
+	bufsrc.buffer = sndbuf;
+	bufsrc.connect(audioCtx.destination);
+	bufsrc.start();
+}
+
 // Sets up everything
 function main() {
 	install_allegro();
@@ -306,6 +320,14 @@ function main() {
 	install_keyboard();
 	install_sound();
 	set_gfx_mode("canvas_id", cv_w, cv_h);
+	// Generate sound
+	boing = audioCtx.createBuffer(1, audioCtx.sampleRate*.5, audioCtx.sampleRate); // half a sec sound
+	var buf = boing.getChannelData(0);
+	for (var i = 0; i < boing.length; i++) {
+		buf[i] = Math.sin(10. * 2. * Math.PI * boing.length/(i+1)) * .05; // 10 periods
+	}
+	playSndBuf(boing);
+	// End Generate sound
 	var cur_time = time();
 	loop(function() {
 		var delta_t = time() - cur_time;
