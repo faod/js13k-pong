@@ -203,6 +203,8 @@ var ymax = 15;
 var canvasAABB = new AABB({ x: 16., y: 9. }, { x: 32., y: 18. });
 // Bounce sound
 var boing = null;
+// GameOver sound
+var boom = null;
 
 
 /*    ENTRY CODE    */
@@ -269,6 +271,7 @@ function game_logic(delta_t) {
 	if (ballin.x) {
 		console.log("current_status <-- GAMEOVER");
 		current_status = Statuses.GAMEOVER;
+		playSndBuf(boom);
 	}
 	if (ballin.y) {
 		ball.vBounce();
@@ -327,6 +330,17 @@ function main() {
 		buf[i] = Math.sin(10. * 2. * Math.PI * boing.length/(i+1)) * .05; // 10 periods
 	}
 	playSndBuf(boing);
+	// ---
+	boom = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate); // 1 sec sound
+	var buf = boom.getChannelData(0);
+	for (var i = 0; i < boom.length; i++) {
+		buf[i] = frand() * .2;
+	}
+	for (var i = 0; i < boom.length/2.; i++) {
+		var fac = Math.sin(i / (boom.length/2.)  * Math.PI / 2.);
+		buf[i]               *= fac;
+		buf[boom.length-1-i] *= fac;
+	}
 	// End Generate sound
 	var cur_time = time();
 	loop(function() {
