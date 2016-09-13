@@ -1,0 +1,26 @@
+<!doctype html>
+<html style="height: 100%; width: 100%; background-color: white; color: black;">
+	<head>
+		<meta charset="utf-8">
+		<title>My first Pong game</title>
+		<script src="allegrojs/allegro.js"></script>
+		<script src="colour.js"></script>
+		<script src="pong.js"></script>
+		<style>
+			#canvas_id {
+				/* http://stackoverflow.com/questions/7615009/disable-interpolation-when-scaling-a-canvas */
+				image-rendering: optimizeSpeed;             /* Older versions of FF          */
+				image-rendering: -moz-crisp-edges;          /* FF 6.0+                       */
+				image-rendering: -webkit-optimize-contrast; /* Safari                        */
+				image-rendering: -o-crisp-edges;            /* OS X & Windows Opera (12.02+) */
+				image-rendering: pixelated;                 /* Awesome future-browsers       */
+				-ms-interpolation-mode: nearest-neighbor;   /* IE                            */
+			}
+		</style>
+	</head>
+	<body style="margin: 0; padding: 0; height: 100%; width: 100%;">
+		<div style="margin: auto; padding: 0; height: 360px; width: 640px; position: relative; top: 50%; transform: translateY(-50%);">
+			<canvas id="canvas_id" style="margin: 0; padding: 0; height: 100%; width: 100%;"></canvas>
+		</div>
+	</body>
+</html>
